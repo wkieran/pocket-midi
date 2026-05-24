@@ -14,12 +14,13 @@ add_subdirectory(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040 FREERTOS
 pico_sdk_init()
 
 add_executable(pocket_midi
-    main.c
-    usb_descriptors.c
+    src/main.c
+    src/usb_descriptors.c
 )
 
 target_include_directories(pocket_midi PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
 target_link_libraries(pocket_midi PRIVATE

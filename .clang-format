@@ -1,5 +1,15 @@
-  BasedOnStyle: LLVM
-  IndentWidth: 4
-  UseTab: Never
-  ColumnLimit: 100
-  SortIncludes: false
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 100
+SortIncludes: false
+AlwaysBreakAfterReturnType: None
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  BeforeElse: true
+  AfterStruct: true

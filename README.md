@@ -1,6 +1,6 @@
 # pocket-midi
 
-A pocket-sized midi controller based on the RP2350 MCU, and using the Seeed Studio XIAO RP2350. Built with FreeRTOS, tiny-usb, and pico-sdk. I'm also using a Pico 2 as a development board, it shares the same MCU.
+A pocket-sized MIDI controller based on the RP2350 MCU, using the Seeed Studio XIAO RP2350. Built with FreeRTOS, TinyUSB, and pico-sdk. A Pico 2 is used as a development board — it shares the same MCU.
 
 ## dependencies
 - `arm-none-eabi-gcc`
@@ -16,7 +16,13 @@ cmake --build build
 ```
 
 ## how to flash
-hold BOOTSEL, plug into your computer, mount the `RP2350` volume, and copy the `.uf2` file from `build/` onto the drive.
+Hold BOOTSEL, plug into your computer, mount the `RP2350` volume, and copy the `.uf2` file from `build/` onto the drive.
 
 ## project status
-first phase - build tooling, FreeRTOS boots, USB descriptions
+| phase | description | status |
+| --- | --- | --- |
+| 1 | build tooling, FreeRTOS booting, USB descriptors, MIDI enumeration | done |
+| 2 | input subsystem: MCP23017, buttons, encoders | in progress |
+| 3 | LED subsystem: IS31FL3731, PWM | not started |
+| 4 | integration: full interface count, I2C bus test | not started |
+| 5 | hardware design: KiCad schematic, BOM, layout | not started |
