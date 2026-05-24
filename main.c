@@ -1,31 +1,41 @@
 #include <FreeRTOS.h>
-#include "task.h"
 #include "pico/stdlib.h"
+#include "task.h"
+#include "tusb.h"
+#include <pico/stdio.h>
 
-void vApplicationMallocFailedHook() { while(1){} }
-void vApplicationStackOverflowHook(TaskHandle_t t, char *c) { panic(c); }
-
-int main() {
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+void vApplicationMallocFailedHook() {
     while (1) {
-        gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        sleep_ms(500);
-        gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        sleep_ms(500);
+    }
+}
+void vApplicationStackOverflowHook(TaskHandle_t task_handle, char *c) { panic(c); }
+struct led_task_arg {
+    int gpio;
+    int delay;
+};
+
+void led_task(void *p) {
+    struct led_task_arg *a = (struct led_task_arg *)p;
+
+    gpio_init(a->gpio);
+    gpio_set_dir(a->gpio, GPIO_OUT);
+    while (1) {
+        gpio_put(a->gpio, 1);
+        vTaskDelay(pdMS_TO_TICKS(a->delay));
+        gpio_put(a->gpio, 0);
+        vTaskDelay(pdMS_TO_TICKS(a->delay));
     }
 }
 
-// #include <FreeRTOS.h>
-// #include "task.h"
-// #include "tusb.h"
-// #include "pico/stdlib.h"
-//
-// void vApplicationMallocFailedHook() { while(1){} }
-// void vApplicationStackOverflowHook(TaskHandle_t task_handle, char * c) { panic(c); }
-//
-// int main() {
-//     tusb_init();
-//     vTaskStartScheduler();
-//     return 0;
-// }
+int main() {
+    tusb_init();
+    stdio_init_all();
+    printf("Start LED blink\n");
+
+    struct led_task_arg arg = {PICO_DEFAULT_LED_PIN, 250};
+    xTaskCreate(led_task, "LED_Task", 256, &arg, 1, NULL);
+
+    vTaskStartScheduler();
+
+    return 0;
+}
