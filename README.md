@@ -2,6 +2,8 @@
 
 A pocket-sized MIDI controller based on the RP2350 MCU, using the Seeed Studio XIAO RP2350. Built with FreeRTOS, TinyUSB, and pico-sdk. A Pico 2 is used as a development board — it shares the same MCU.
 
+I've been using VCV Rack to test the MIDI interface here, checkout [patches](./patches/) for examples.
+
 ## dependencies
 - `arm-none-eabi-gcc`
 - `cmake`
