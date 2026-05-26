@@ -6,6 +6,7 @@
 #include "task.h"
 #include "tusb.h"
 #include <pico/stdio.h>
+#include "notes.h"
 
 // MIDI Device Defines
 #define BPM 120
@@ -53,10 +54,12 @@ void usb_device_task(void *p)
 }
 
 // MIDI Note Sender Task
-const uint8_t note_sequence[] = {
-    74, 78, 81, 86, 90, 93, 98, 102, 57, 61, 66, 69, 73, 78, 81, 85, 88, 92, 97, 100, 97, 92,
-    88, 85, 81, 78, 74, 69, 66, 62,  57, 62, 66, 69, 74, 78, 81, 86, 90, 93, 97, 102, 97, 93,
-    90, 85, 81, 78, 73, 68, 64, 61,  56, 61, 64, 68, 74, 78, 81, 86, 90, 93, 98, 102};
+
+const uint8_t note_sequence[] = {D5,  Fs5, A5,  D6,  Fs6, A6,  D7,  Fs7, A3,  Cs4, Fs4, A4, Cs5,
+                                 Fs5, A5,  Cs6, E6,  Gs6, Cs7, E7,  Cs7, Gs6, E6,  Cs6, A5, Fs5,
+                                 D5,  A4,  Fs4, D4,  A3,  D4,  Fs4, A4,  D5,  Fs5, A5,  D6, Fs6,
+                                 A6,  Cs7, Fs7, Cs7, A6,  Fs6, Cs6, A5,  Fs5, Cs5, Gs4, E4, Cs4,
+                                 Gs3, Cs4, E4,  Gs4, D5,  Fs5, A5,  D6,  Fs6, A6,  D7,  Fs7};
 
 void midi_task(void *p)
 {
