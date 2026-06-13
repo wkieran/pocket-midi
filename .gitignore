@@ -1,4 +1,5 @@
 build/
+hw/
 compile_commands.json
 
 *.uf2

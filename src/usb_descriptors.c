@@ -9,17 +9,27 @@
 // Device Descriptors
 //--------------------------------------------------------------------+
 
+#ifdef STDIO_USB_CDC
+#define USB_DEVICE_CLASS    0xEF  // Miscellaneous — required when using IAD (CDC)
+#define USB_DEVICE_SUBCLASS 0x02
+#define USB_DEVICE_PROTOCOL 0x01
+#else
+#define USB_DEVICE_CLASS    0x00
+#define USB_DEVICE_SUBCLASS 0x00
+#define USB_DEVICE_PROTOCOL 0x00
+#endif
+
 static tusb_desc_device_t const desc_device = {
     .bLength         = sizeof(tusb_desc_device_t),
     .bDescriptorType = TUSB_DESC_DEVICE,
     .bcdUSB          = 0x0200,
-    .bDeviceClass    = 0x00,
-    .bDeviceSubClass = 0x00,
-    .bDeviceProtocol = 0x00,
+    .bDeviceClass    = USB_DEVICE_CLASS,
+    .bDeviceSubClass = USB_DEVICE_SUBCLASS,
+    .bDeviceProtocol = USB_DEVICE_PROTOCOL,
     .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
 
     .idVendor  = 0xcafe,
-    .idProduct = 0x4062, // MIDI 2.0 Device
+    .idProduct = 0x4062,
     .bcdDevice = 0x0100,
 
     .iManufacturer = 0x01,
@@ -32,27 +42,52 @@ static tusb_desc_device_t const desc_device = {
 uint8_t const *tud_descriptor_device_cb(void) { return (uint8_t const *)&desc_device; }
 
 //--------------------------------------------------------------------+
-// Configuration Descriptor - MIDI 2.0
+// Configuration Descriptor
 //--------------------------------------------------------------------+
 
+#ifdef STDIO_USB_CDC
+
 enum {
-    ITF_NUM_MIDI = 0,       // Audio Control interface
-    ITF_NUM_MIDI_STREAMING, // MIDI Streaming interface (auto-created by TUD_MIDI2_DESCRIPTOR)
+    ITF_NUM_CDC = 0,
+    ITF_NUM_CDC_DATA,
+    ITF_NUM_MIDI,
+    ITF_NUM_MIDI_STREAMING,
     ITF_NUM_TOTAL
 };
 
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_MIDI_DESC_LEN)
+#define EPNUM_CDC_NOTIF  0x81
+#define EPNUM_CDC_OUT    0x02
+#define EPNUM_CDC_IN     0x82
+#define EPNUM_MIDI_OUT   0x03
+#define EPNUM_MIDI_IN    0x83
 
-// Endpoint addresses
-#define EPNUM_MIDI_OUT 0x01
-#define EPNUM_MIDI_IN 0x81
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_CDC_DESC_LEN + TUD_MIDI_DESC_LEN)
 
 static uint8_t const desc_fs_configuration[] = {
-    // Config number, interface count, string index, total length, attribute, power in mA
     TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC, 4, EPNUM_CDC_NOTIF, 8, EPNUM_CDC_OUT, EPNUM_CDC_IN, 64),
+    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, 0, EPNUM_MIDI_OUT, EPNUM_MIDI_IN, 64),
+};
 
-    // MIDI 2.0 Interface
-    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, 0, EPNUM_MIDI_OUT, EPNUM_MIDI_IN, 64)};
+#else
+
+enum {
+    ITF_NUM_MIDI = 0,
+    ITF_NUM_MIDI_STREAMING,
+    ITF_NUM_TOTAL
+};
+
+#define EPNUM_MIDI_OUT 0x01
+#define EPNUM_MIDI_IN  0x81
+
+#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_MIDI_DESC_LEN)
+
+static uint8_t const desc_fs_configuration[] = {
+    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
+    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, 0, EPNUM_MIDI_OUT, EPNUM_MIDI_IN, 64),
+};
+
+#endif
 
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index)
 {
@@ -69,13 +104,19 @@ enum {
     STRID_MANUFACTURER = 1,
     STRID_PRODUCT      = 2,
     STRID_SERIAL       = 3,
+#ifdef STDIO_USB_CDC
+    STRID_CDC          = 4,
+#endif
 };
 
 static char const *string_desc_arr[] = {
-    (const char[]){0x09, 0x04}, // 0: Language
-    "kieran",                   // 1: Manufacturer
-    "pocket-midi",              // 2: Product
-    NULL,                       // 3: Serial
+    (const char[]){0x09, 0x04},
+    "kieran",
+    "pocket-midi",
+    NULL,
+#ifdef STDIO_USB_CDC
+    "pocket-midi cdc",
+#endif
 };
 
 static uint16_t _desc_str[32 + 1];

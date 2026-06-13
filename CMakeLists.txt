@@ -29,6 +29,18 @@ target_link_libraries(pocket_midi PRIVATE
     tinyusb_board
     FreeRTOS-Kernel
     FreeRTOS-Kernel-Heap4
+    hardware_i2c
 )
 
 pico_add_extra_outputs(pocket_midi)
+
+# -- stdio: uncomment one block -----------------------------------------------
+
+# USB CDC — stdout via TinyUSB CDC, no adapter needed:
+pico_enable_stdio_uart(pocket_midi 0)
+pico_enable_stdio_usb(pocket_midi 0)
+target_compile_definitions(pocket_midi PRIVATE STDIO_USB_CDC)
+
+# UART — stdout via TX/RX pins, needs a USB-to-serial adapter:
+# pico_enable_stdio_uart(pocket_midi 1)
+# pico_enable_stdio_usb(pocket_midi 0)
