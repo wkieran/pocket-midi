@@ -9,15 +9,9 @@
 // Device Descriptors
 //--------------------------------------------------------------------+
 
-#ifdef STDIO_USB_CDC
 #define USB_DEVICE_CLASS    0xEF  // Miscellaneous — required when using IAD (CDC)
 #define USB_DEVICE_SUBCLASS 0x02
 #define USB_DEVICE_PROTOCOL 0x01
-#else
-#define USB_DEVICE_CLASS    0x00
-#define USB_DEVICE_SUBCLASS 0x00
-#define USB_DEVICE_PROTOCOL 0x00
-#endif
 
 static tusb_desc_device_t const desc_device = {
     .bLength         = sizeof(tusb_desc_device_t),
@@ -45,8 +39,6 @@ uint8_t const *tud_descriptor_device_cb(void) { return (uint8_t const *)&desc_de
 // Configuration Descriptor
 //--------------------------------------------------------------------+
 
-#ifdef STDIO_USB_CDC
-
 enum {
     ITF_NUM_CDC = 0,
     ITF_NUM_CDC_DATA,
@@ -69,26 +61,6 @@ static uint8_t const desc_fs_configuration[] = {
     TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, 0, EPNUM_MIDI_OUT, EPNUM_MIDI_IN, 64),
 };
 
-#else
-
-enum {
-    ITF_NUM_MIDI = 0,
-    ITF_NUM_MIDI_STREAMING,
-    ITF_NUM_TOTAL
-};
-
-#define EPNUM_MIDI_OUT 0x01
-#define EPNUM_MIDI_IN  0x81
-
-#define CONFIG_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_MIDI_DESC_LEN)
-
-static uint8_t const desc_fs_configuration[] = {
-    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
-    TUD_MIDI_DESCRIPTOR(ITF_NUM_MIDI, 0, EPNUM_MIDI_OUT, EPNUM_MIDI_IN, 64),
-};
-
-#endif
-
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index)
 {
     (void)index;
@@ -104,9 +76,7 @@ enum {
     STRID_MANUFACTURER = 1,
     STRID_PRODUCT      = 2,
     STRID_SERIAL       = 3,
-#ifdef STDIO_USB_CDC
     STRID_CDC          = 4,
-#endif
 };
 
 static char const *string_desc_arr[] = {
@@ -114,9 +84,7 @@ static char const *string_desc_arr[] = {
     "kieran",
     "pocket-midi",
     NULL,
-#ifdef STDIO_USB_CDC
     "pocket-midi cdc",
-#endif
 };
 
 static uint16_t _desc_str[32 + 1];

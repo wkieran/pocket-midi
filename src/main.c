@@ -55,8 +55,6 @@ void led_task(void *p)
 
 // -- usb cdc stdio driver ----------------------------------------------------
 
-#ifdef STDIO_USB_CDC
-
 static void cdc_out_chars(const char *buf, int length)
 {
     if (tud_cdc_connected()) {
@@ -75,8 +73,6 @@ static stdio_driver_t cdc_stdio = {
     .out_chars = cdc_out_chars,
     .out_flush = cdc_out_flush,
 };
-
-#endif
 
 // -- usb device task ---------------------------------------------------------
 
@@ -184,9 +180,7 @@ int main()
 {
     stdio_init_all();
 
-#ifdef STDIO_USB_CDC
     stdio_set_driver_enabled(&cdc_stdio, true);
-#endif
 
     // xTaskCreate(led_task, "led blinky", configMINIMAL_STACK_SIZE, &led_arg, 1, NULL);
     xTaskCreate(usb_device_task, "usb device", configMINIMAL_STACK_SIZE * 4, NULL,

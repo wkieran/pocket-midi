@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 include(pico_sdk_import.cmake)
 
-project(pocket-midi C CXX ASM)
+project(pocket_midi C CXX ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -34,13 +34,9 @@ target_link_libraries(pocket_midi PRIVATE
 
 pico_add_extra_outputs(pocket_midi)
 
-# -- stdio: uncomment one block -----------------------------------------------
+# -- stdio --------------------------------------------------------------------
 
-# USB CDC — stdout via TinyUSB CDC, no adapter needed:
+# stdout goes over USB CDC via the custom TinyUSB stdio driver in src/main.c.
+# Both SDK stdio backends are left off so they don't fight that driver.
 pico_enable_stdio_uart(pocket_midi 0)
 pico_enable_stdio_usb(pocket_midi 0)
-target_compile_definitions(pocket_midi PRIVATE STDIO_USB_CDC)
-
-# UART — stdout via TX/RX pins, needs a USB-to-serial adapter:
-# pico_enable_stdio_uart(pocket_midi 1)
-# pico_enable_stdio_usb(pocket_midi 0)

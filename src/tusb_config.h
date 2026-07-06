@@ -22,13 +22,9 @@
 #define CFG_TUD_MIDI_RX_BUFSIZE                 64
 #define CFG_TUD_MIDI_TX_BUFSIZE                 64
 
-#ifdef STDIO_USB_CDC
 #define CFG_TUD_CDC                             1
 #define CFG_TUD_CDC_RX_BUFSIZE                  64
 #define CFG_TUD_CDC_TX_BUFSIZE                  64
-#else
-#define CFG_TUD_CDC                             0
-#endif
 
 #define CFG_TUD_MSC                             0
 #define CFG_TUD_HID                             0

@@ -17,24 +17,14 @@ cmake -B build -DPICO_BOARD=seeed_xiao_rp2350
 cmake --build build
 ```
 
-## stdout: switching between USB CDC and UART
+## stdout: serial monitor over USB
 
-By default stdout goes through USB CDC (TinyUSB). To switch to UART (requires a USB-to-serial adapter on the TX/RX pins), edit `CMakeLists.txt`:
+The device enumerates as a composite USB **MIDI + CDC** device, so you get MIDI
+and a serial monitor over the same USB-C cable in one session — no serial
+adapter needed. stdout goes through the CDC interface via a custom TinyUSB stdio
+driver (`src/main.c`).
 
-**USB CDC (default):**
-```cmake
-pico_enable_stdio_uart(pocket_midi 0)
-pico_enable_stdio_usb(pocket_midi 0)
-target_compile_definitions(pocket_midi PRIVATE STDIO_USB_CDC)
-```
-
-**UART:**
-```cmake
-pico_enable_stdio_uart(pocket_midi 1)
-pico_enable_stdio_usb(pocket_midi 0)
-```
-
-Then rebuild. To view output with `tio`: `tio /dev/ttyACM0` (CDC) or `tio /dev/ttyUSB0` (UART).
+View output with `tio`: `tio /dev/ttyACM0`.
 
 ## how to flash
 Hold BOOTSEL, plug into your computer, mount the `RP2350` volume, and copy the `.uf2` file from `build/` onto the drive.
