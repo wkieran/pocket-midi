@@ -16,7 +16,10 @@
 #define SUBDIVISION 1 // 1: quarter notes, 2: eighth notes, 4: sixteenth notes
 #define NOTE_MS (60000 / BPM / SUBDIVISION)
 
-#define I2C_BAUD_RATE 100000
+// 10 kHz — deliberately slow. With only the RP2350's weak internal pull-ups the
+// SDA/SCL rise times are long, so a slow clock gives the lines time to settle
+// before each ACK is sampled. Bump back to 100000 once external pull-ups exist.
+#define I2C_BAUD_RATE 10000
 #define I2C_SDA_PIN 4
 #define I2C_SCL_PIN 5
 
@@ -158,18 +161,21 @@ void mcp23017_task(void *p)
             // -1.
 
             // Skip over any reserved addresses.
-            int ret;
+            int ret = PICO_ERROR_GENERIC;
             uint8_t rxdata;
-            if (reserved_addr(addr))
-                ret = PICO_ERROR_GENERIC;
-            else
-                ret = i2c_read_blocking(i2c_default, addr, &rxdata, 1, false);
+            if (!reserved_addr(addr)) {
+                // Retry a few times so an intermittent ACK on a marginal bus
+                // still registers, and use a timeout so a stuck bus prints a
+                // dot instead of hanging the task forever.
+                for (int attempt = 0; attempt < 3 && ret < 0; ++attempt) {
+                    ret = i2c_read_timeout_us(i2c0, addr, &rxdata, 1, false, 10000);
+                }
+            }
 
             printf(ret < 0 ? "." : "@");
-            printf(addr % 16 == 15 ? "\n" : "  ");
+            printf(addr % 16 == 15 ? "\r\n" : "  ");
         }
-        printf("Done.\n");
-        // printf("testing!\r\n");
+        printf("Done.\r\n");
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
