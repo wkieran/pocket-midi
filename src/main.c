@@ -6,8 +6,10 @@
 #include "projdefs.h"
 #include "task.h"
 #include "tusb.h"
+#include <hardware/gpio.h>
 #include <pico/stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "notes.h"
 #include "hardware/i2c.h"
 #include "pico/stdio/driver.h"
@@ -142,14 +144,28 @@ void midi_task(void *p)
 void mcp_write_reg(uint8_t reg, uint8_t val)
 {
     uint8_t buf[2] = {reg, val};
-    i2c_write_timeout_us(i2c0, MCP23017_ADDR, buf, 2, false, 10000);
+
+    int err = i2c_write_timeout_us(i2c0, MCP23017_ADDR, buf, 2, false, 10000);
+    if (err < 0) {
+        printf("mcp_write_reg: i2c write error %d on %d\r\n", err, reg);
+    }
 }
 
 uint8_t mcp_read_reg(uint8_t reg)
 {
-    uint8_t rxdata;
-    i2c_write_timeout_us(i2c0, MCP23017_ADDR, &reg, 1, true, 10000);
-    i2c_read_timeout_us(i2c0, MCP23017_ADDR, &rxdata, 1, false, 10000);
+    uint8_t rxdata = 0xAB;
+
+    int err = i2c_write_timeout_us(i2c0, MCP23017_ADDR, &reg, 1, true, 10000);
+    if (err < 0) {
+        printf("mcp_read_reg: i2c write error %d on %d\r\n", err, reg);
+        return rxdata;
+    }
+
+    err = i2c_read_timeout_us(i2c0, MCP23017_ADDR, &rxdata, 1, false, 10000);
+    if (err < 0) {
+        printf("mcp_read_reg: i2c read error %d on %d\r\n", err, reg);
+    }
+
     return rxdata;
 }
 
@@ -173,15 +189,29 @@ void input_task(void *p)
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
-    bool prev_pressed = false;
-    bool led_on       = false;
+    bool prev_pressed         = false;
+    bool led_on               = false;
+    TickType_t time           = 0;
+    const TickType_t debounce = pdMS_TO_TICKS(20);
+    // const TickType_t debounce = 20;
 
     while (1) {
         uint8_t raw     = mcp_read_reg(GPIOB);
         uint8_t pressed = (raw & BTN_MASK) == 0;
-        printf("raw=%02x pressed=%d\r\n", raw, pressed);
-        vTaskDelay(pdMS_TO_TICKS(100));
+        TickType_t now  = xTaskGetTickCount();
+
+        vTaskDelay(pdMS_TO_TICKS(5));
+
+        if (pressed && !prev_pressed && now - time > debounce) {
+            led_on = !led_on;
+            time   = now;
+            printf("%u -- raw=%02x pressed=%d\r\n", now, raw, pressed);
+        }
+        gpio_put(PICO_DEFAULT_LED_PIN, led_on);
+        prev_pressed = pressed;
     }
+
+    // TODO put this somewhere more useful. prints i2c address table
     // while (1) {
     //     // temp snippet to test i2c address gathering
     //     for (int addr = 0; addr < (1 << 7); ++addr) {
