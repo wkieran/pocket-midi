@@ -8,3 +8,5 @@ compile_commands.json
 *.hex
 *.dis
 *.map
+
+DEVLOG.md
