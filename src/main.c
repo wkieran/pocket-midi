@@ -206,7 +206,13 @@ void input_task(void *p)
             led_on = !led_on;
             time   = now;
             printf("%u -- raw=%02x pressed=%d\r\n", now, raw, pressed);
+
+            // send MIDI note here?
         }
+        else if (!pressed && prev_pressed && now - time > debounce) {
+            printf("released!!\r\n");
+        }
+
         gpio_put(PICO_DEFAULT_LED_PIN, led_on);
         prev_pressed = pressed;
     }
@@ -255,8 +261,8 @@ int main()
     // xTaskCreate(led_task, "led blinky", configMINIMAL_STACK_SIZE, &led_arg, 1, NULL);
     xTaskCreate(usb_device_task, "usb device", configMINIMAL_STACK_SIZE * 4, NULL,
                 configMAX_PRIORITIES - 1, NULL);
-    xTaskCreate(midi_task, "midi song", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 2,
-                NULL);
+    // xTaskCreate(midi_task, "midi song", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 2,
+    // NULL);
     xTaskCreate(input_task, "input task", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 3,
                 NULL);
 
