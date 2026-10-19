@@ -14,7 +14,7 @@ I've been using VCV Rack to test the MIDI interface here, check out [patches](./
 
 ## build
 ```
-git submodule update --init
+git submodule update --init --recursive
 cmake -B build -DPICO_BOARD=seeed_xiao_rp2350
 cmake --build build
 ```
