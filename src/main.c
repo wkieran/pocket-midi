@@ -8,6 +8,7 @@
 #include "tusb.h"
 #include <hardware/gpio.h>
 #include <pico/stdio.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include "notes.h"
@@ -20,10 +21,9 @@
 #define SUBDIVISION 1 // 1: quarter notes, 2: eighth notes, 4: sixteenth notes
 #define NOTE_MS (60000 / BPM / SUBDIVISION)
 
-// 10 kHz — deliberately slow. With only the RP2350's weak internal pull-ups the
-// SDA/SCL rise times are long, so a slow clock gives the lines time to settle
-// before each ACK is sampled. Bump back to 100000 once external pull-ups exist.
-#define I2C_BAUD_RATE 10000
+// 100 kHz standard mode. Currently running on the RP2350's weak internal
+// pull-ups only.
+#define I2C_BAUD_RATE 100000
 #define I2C_SDA_PIN 4
 #define I2C_SCL_PIN 5
 
@@ -31,7 +31,9 @@
 #define MCP23017_ADDR 0x20
 #define GPPUB 0x0D
 #define GPIOB 0x13
+#define IODIRB 0x01
 #define BTN_MASK 0x01
+
 // -- hooks -------------------------------------------------------------------
 
 void vApplicationMallocFailedHook()
@@ -141,32 +143,43 @@ void midi_task(void *p)
 
 // -- mcp23017 i2c task -------------------------------------------------------
 
-void mcp_write_reg(uint8_t reg, uint8_t val)
+void format_bits(uint8_t n, char *buffer)
+{
+    for (int i = 7; i >= 0; i--) {
+        // Store '1' if bit is true, otherwise store '0'
+        buffer[7 - i] = ((n >> i) & 1) ? '1' : '0';
+    }
+    buffer[8] = '\0'; // Null-terminate the string
+}
+
+bool mcp_write_reg(uint8_t reg, uint8_t val)
 {
     uint8_t buf[2] = {reg, val};
 
     int err = i2c_write_timeout_us(i2c0, MCP23017_ADDR, buf, 2, false, 10000);
     if (err < 0) {
         printf("mcp_write_reg: i2c write error %d on %d\r\n", err, reg);
+        return false;
     }
+
+    return true;
 }
 
-uint8_t mcp_read_reg(uint8_t reg)
+bool mcp_read_reg(uint8_t reg, uint8_t *rxdata)
 {
-    uint8_t rxdata = 0xAB;
-
     int err = i2c_write_timeout_us(i2c0, MCP23017_ADDR, &reg, 1, true, 10000);
     if (err < 0) {
         printf("mcp_read_reg: i2c write error %d on %d\r\n", err, reg);
-        return rxdata;
+        return false;
     }
 
-    err = i2c_read_timeout_us(i2c0, MCP23017_ADDR, &rxdata, 1, false, 10000);
+    err = i2c_read_timeout_us(i2c0, MCP23017_ADDR, rxdata, 1, false, 10000);
     if (err < 0) {
         printf("mcp_read_reg: i2c read error %d on %d\r\n", err, reg);
+        return false;
     }
 
-    return rxdata;
+    return true;
 }
 
 bool reserved_addr(uint8_t addr) { return (addr & 0x78) == 0 || (addr & 0x78) == 0x78; }
@@ -185,39 +198,85 @@ void input_task(void *p)
 
     printf("CDC connected\r\n");
 
-    mcp_write_reg(GPPUB, 0x01);
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-
-    bool prev_pressed         = false;
-    bool led_on               = false;
-    TickType_t time           = 0;
-    const TickType_t debounce = pdMS_TO_TICKS(20);
-    // const TickType_t debounce = 20;
-
-    while (1) {
-        uint8_t raw     = mcp_read_reg(GPIOB);
-        uint8_t pressed = (raw & BTN_MASK) == 0;
-        TickType_t now  = xTaskGetTickCount();
-
-        vTaskDelay(pdMS_TO_TICKS(5));
-
-        if (pressed && !prev_pressed && now - time > debounce) {
-            led_on = !led_on;
-            time   = now;
-            printf("%u -- raw=%02x pressed=%d\r\n", now, raw, pressed);
-
-            // send MIDI note here?
-        }
-        else if (!pressed && prev_pressed && now - time > debounce) {
-            printf("released!!\r\n");
-        }
-
-        gpio_put(PICO_DEFAULT_LED_PIN, led_on);
-        prev_pressed = pressed;
+    if (!mcp_write_reg(GPPUB, 0xFF)) {
+        printf("error setting pull-ups in GPIOB\r\n");
+    }
+    if (!mcp_write_reg(IODIRB, 0xFF)) {
+        printf("error setting direction to input in GPIOB\r\n");
     }
 
-    // TODO put this somewhere more useful. prints i2c address table
+    uint8_t raw;
+    mcp_read_reg(GPPUB, &raw);
+    if (raw != 0xFF) {
+        printf("error: pull-up resistors not correctly set. Error setting GPPUB register\r\n");
+    }
+    // gpio_init(PICO_DEFAULT_LED_PIN);
+    // gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
+    // bool prev_pressed = false;
+    // bool led_on       = false;
+    // TickType_t time   = 0;
+    // const TickType_t debounce = pdMS_TO_TICKS(20);
+
+    printf("        B7 B6 B5 B4 B3 B2 B1 B0\r\n");
+    bool first  = true;
+    bool bus_ok = true;
+    uint8_t prev;
+
+    while (1) {
+        vTaskDelay(pdMS_TO_TICKS(20));
+
+        uint8_t raw;
+        if (!mcp_read_reg(GPIOB, &raw)) {
+            if (bus_ok) {
+                printf("BUS ERROR\r\n");
+                bus_ok = false;
+            }
+            continue;
+        }
+
+        if (!bus_ok) {
+            printf("bus recovered\r\n");
+            bus_ok = true;
+        }
+
+        if (first || (raw != prev)) {
+            char bits[9];
+            format_bits(raw, bits);
+            TickType_t now = xTaskGetTickCount();
+            printf("%u  %02x  %s\r\n", now, raw, bits);
+            first = false;
+        }
+
+        prev = raw;
+    }
+
+    // while (1) {
+    //     vTaskDelay(pdMS_TO_TICKS(5));
+    //
+    //     uint8_t raw;
+    //     if (!mcp_read_reg(GPIOB, &raw)) {
+    //         continue;
+    //     }
+    //     uint8_t pressed = (raw & BTN_MASK) == 0;
+    //     TickType_t now  = xTaskGetTickCount();
+    //
+    //     if (pressed && !prev_pressed && now - time > debounce) {
+    //         led_on = !led_on;
+    //         time   = now;
+    //         printf("%u -- raw=%02x pressed=%d\r\n", now, raw, pressed);
+    //
+    //         // send MIDI note here?
+    //     }
+    //     else if (!pressed && prev_pressed && now - time > debounce) {
+    //         printf("released!!\r\n");
+    //     }
+    //
+    //     gpio_put(PICO_DEFAULT_LED_PIN, led_on);
+    //     prev_pressed = pressed;
+    // }
+
+    // // TODO put this somewhere more useful. prints i2c address table
     // while (1) {
     //     // temp snippet to test i2c address gathering
     //     for (int addr = 0; addr < (1 << 7); ++addr) {
