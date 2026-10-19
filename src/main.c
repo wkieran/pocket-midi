@@ -32,7 +32,6 @@
 #define GPPUB 0x0D
 #define GPIOB 0x13
 #define IODIRB 0x01
-#define BTN_MASK 0x01
 
 // -- hooks -------------------------------------------------------------------
 
@@ -42,30 +41,6 @@ void vApplicationMallocFailedHook()
     }
 }
 void vApplicationStackOverflowHook(TaskHandle_t task_handle, char *c) { panic(c); }
-
-// -- led task ----------------------------------------------------------------
-
-struct led_task_arg
-{
-    int gpio;
-    int delay;
-};
-
-struct led_task_arg led_arg = {PICO_DEFAULT_LED_PIN, 125};
-
-void led_task(void *p)
-{
-    struct led_task_arg *a = (struct led_task_arg *)p;
-
-    gpio_init(a->gpio);
-    gpio_set_dir(a->gpio, GPIO_OUT);
-    while (1) {
-        gpio_put(a->gpio, 1);
-        vTaskDelay(pdMS_TO_TICKS(a->delay));
-        gpio_put(a->gpio, 0);
-        vTaskDelay(pdMS_TO_TICKS(a->delay));
-    }
-}
 
 // -- usb cdc stdio driver ----------------------------------------------------
 
@@ -182,8 +157,6 @@ bool mcp_read_reg(uint8_t reg, uint8_t *rxdata)
     return true;
 }
 
-bool reserved_addr(uint8_t addr) { return (addr & 0x78) == 0 || (addr & 0x78) == 0x78; }
-
 void input_task(void *p)
 {
     i2c_init(i2c0, I2C_BAUD_RATE);
@@ -210,13 +183,6 @@ void input_task(void *p)
     if (raw != 0xFF) {
         printf("error: pull-up resistors not correctly set. Error setting GPPUB register\r\n");
     }
-    // gpio_init(PICO_DEFAULT_LED_PIN);
-    // gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-
-    // bool prev_pressed = false;
-    // bool led_on       = false;
-    // TickType_t time   = 0;
-    // const TickType_t debounce = pdMS_TO_TICKS(20);
 
     printf("        B7 B6 B5 B4 B3 B2 B1 B0\r\n");
     bool first  = true;
@@ -250,63 +216,6 @@ void input_task(void *p)
 
         prev = raw;
     }
-
-    // while (1) {
-    //     vTaskDelay(pdMS_TO_TICKS(5));
-    //
-    //     uint8_t raw;
-    //     if (!mcp_read_reg(GPIOB, &raw)) {
-    //         continue;
-    //     }
-    //     uint8_t pressed = (raw & BTN_MASK) == 0;
-    //     TickType_t now  = xTaskGetTickCount();
-    //
-    //     if (pressed && !prev_pressed && now - time > debounce) {
-    //         led_on = !led_on;
-    //         time   = now;
-    //         printf("%u -- raw=%02x pressed=%d\r\n", now, raw, pressed);
-    //
-    //         // send MIDI note here?
-    //     }
-    //     else if (!pressed && prev_pressed && now - time > debounce) {
-    //         printf("released!!\r\n");
-    //     }
-    //
-    //     gpio_put(PICO_DEFAULT_LED_PIN, led_on);
-    //     prev_pressed = pressed;
-    // }
-
-    // // TODO put this somewhere more useful. prints i2c address table
-    // while (1) {
-    //     // temp snippet to test i2c address gathering
-    //     for (int addr = 0; addr < (1 << 7); ++addr) {
-    //         if (addr % 16 == 0) {
-    //             printf("%02x ", addr);
-    //         }
-    //
-    //         // Perform a 1-byte dummy read from the probe address. If a slave
-    //         // acknowledges this address, the function returns the number of bytes
-    //         // transferred. If the address byte is ignored, the function returns
-    //         // -1.
-    //
-    //         // Skip over any reserved addresses.
-    //         int ret = PICO_ERROR_GENERIC;
-    //         uint8_t rxdata;
-    //         if (!reserved_addr(addr)) {
-    //             // Retry a few times so an intermittent ACK on a marginal bus
-    //             // still registers, and use a timeout so a stuck bus prints a
-    //             // dot instead of hanging the task forever.
-    //             for (int attempt = 0; attempt < 3 && ret < 0; ++attempt) {
-    //                 ret = i2c_read_timeout_us(i2c0, addr, &rxdata, 1, false, 10000);
-    //             }
-    //         }
-    //
-    //         printf(ret < 0 ? "." : "@");
-    //         printf(addr % 16 == 15 ? "\r\n" : "  ");
-    //     }
-    //     printf("Done.\r\n");
-    //     vTaskDelay(pdMS_TO_TICKS(1000));
-    // }
 }
 
 // -- main --------------------------------------------------------------------
@@ -317,7 +226,6 @@ int main()
 
     stdio_set_driver_enabled(&cdc_stdio, true);
 
-    // xTaskCreate(led_task, "led blinky", configMINIMAL_STACK_SIZE, &led_arg, 1, NULL);
     xTaskCreate(usb_device_task, "usb device", configMINIMAL_STACK_SIZE * 4, NULL,
                 configMAX_PRIORITIES - 1, NULL);
     // xTaskCreate(midi_task, "midi song", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES - 2,
